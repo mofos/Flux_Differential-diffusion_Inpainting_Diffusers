@@ -896,7 +896,7 @@ def download_lora_weights(url, save_path="lora_weights.bin"):
     
     return save_path
 
-def generate_image(prompt, image_data, num_inference_steps, guidance_scale, strength, blur_amount, lora_weights_url):
+def generate_image(prompt, image_data, num_inference_steps, guidance_scale, strength, blur_amount):
     # Convert numpy arrays to PIL images
     image = Image.fromarray(image_data["background"]).convert("RGB")
     
@@ -922,15 +922,12 @@ def generate_image(prompt, image_data, num_inference_steps, guidance_scale, stre
     # Convert the blurred mask tensor back to a PIL image
     blurred_mask_image = T.ToPILImage()(blurred_mask_tensor)
     
-    # Download LoRA weights
-    lora_weights_path = download_lora_weights(lora_weights_url)
     
     # Load the pipeline
     pipe = FluxDifferentialImg2ImgPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
     pipe.enable_model_cpu_offload()
     
-    # Load LoRA weights as an adapter
-    pipe.load_lora_weights(lora_weights_path, backend="peft")
+
     
     # Generate the output image
     out = pipe(
@@ -955,13 +952,12 @@ interface = gr.Interface(
         gr.Slider(1.0, 10.0, value=3.5, step=0.1, label="Guidance Scale"),
         gr.Slider(0.0, 1.0, value=1.0, step=0.1, label="Strength"),
         gr.Slider(0, 200, value=0, step=1, label="Blur Amount"),
-        gr.Textbox(label="LoRA Weights URL")  # Add this input for the LoRA weights URL
     ],
     outputs=[
         gr.Image(type="pil", label="Output Image"),
         gr.Image(type="pil", label="Mask Image")
     ],
-    title="Flux Differential Image-to-Image Pipeline",
+    title="Flux Differential Inpainting",
     description="Generate an image based on a prompt, input image, and mask image using the Flux Differential Image-to-Image Pipeline."
 )
 

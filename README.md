@@ -6,22 +6,18 @@ can't wait for the PR(https://github.com/huggingface/diffusers/pull/9268) to get
 
 This project implements soft inpainting using the Flux model with Diffusers, incorporating support for LoRA (Low-Rank Adaptation). It's based on several key technologies and techniques:
 
-1. **Differential Diffusion**:
+there is inpaintingv3 with is simple inapinthing and inpaintingv3_Lora for inpinting with lora 
 
-   [Differential Diffusion: Giving Each Pixel Its Strength](https://arxiv.org/abs/2306.00950)
+1. **inpaintingv3**:
+   - Implements basic inpainting functionality.
+   - Suitable for general image inpainting tasks.
+   - Does not utilize LoRA (Low-Rank Adaptation) for fine-tuning.
 
-   Differential Diffusion enables fine-grained control over the strength of diffusion at each pixel, leading to more nuanced and targeted image edits.
-
-2. **Flux**: 
-
-   [FLUX.1-dev on Hugging Face](https://huggingface.co/black-forest-labs/FLUX.1-dev)
-
-   Flux provides powerful image generation capabilities, which we leverage for our inpainting tasks.
-
-3. **LoRA (Low-Rank Adaptation)**: LoRA weights are loaded using the PEFT (Parameter-Efficient Fine-Tuning) method, allowing for efficient adaptation of the model to specific tasks or styles.
-
-4. **Gaussian Blur for Mask Processing**: The user-provided mask undergoes Gaussian blur processing. This technique softens the edges of the mask, creating a more natural transition between the inpainted area and the original image.
-
+2. **inpaintingv3_Lora**:
+   - Extends the basic inpainting functionality with LoRA support.
+   - Allows for fine-tuning the model using LoRA weights.
+   - Provides more control and customization over the inpainting process.
+   - Ideal for tasks requiring specific styles or adaptations.
 
  
 ## Installation and Usage Instructions
@@ -65,7 +61,24 @@ This project implements soft inpainting using the Flux model with Diffusers, inc
 Note: Make sure you have a GPU with sufficient VRAM for optimal performance. If you encounter memory issues, try reducing the image size or adjusting the model parameters.
 
 
-## Advanced Usage: LoRA Support
+## More details
+
+1. **Differential Diffusion**:
+
+   [Differential Diffusion: Giving Each Pixel Its Strength](https://arxiv.org/abs/2306.00950)
+
+   Differential Diffusion enables fine-grained control over the strength of diffusion at each pixel, leading to more nuanced and targeted image edits.
+
+2. **Flux**: 
+
+   [FLUX.1-dev on Hugging Face](https://huggingface.co/black-forest-labs/FLUX.1-dev)
+
+   Flux provides powerful image generation capabilities, which we leverage for our inpainting tasks.
+
+3. **LoRA (Low-Rank Adaptation)**: LoRA weights are loaded using the PEFT (Parameter-Efficient Fine-Tuning) method, allowing for efficient adaptation of the model to specific tasks or styles.
+
+4. **Gaussian Blur for Mask Processing**: The user-provided mask undergoes Gaussian blur processing. This technique softens the edges of the mask, creating a more natural transition between the inpainted area and the original image.
+
 
 This project now supports LoRA (Low-Rank Adaptation) for fine-tuning the Flux model. This feature is based on the work done in the Hugging Face Diffusers project, specifically PR #9268 (https://github.com/huggingface/diffusers/pull/9268). Credit goes to the contributors of that PR for implementing LoRA support in the Flux pipeline.
 

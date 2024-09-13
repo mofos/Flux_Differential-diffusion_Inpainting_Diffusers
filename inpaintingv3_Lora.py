@@ -949,19 +949,19 @@ def generate_image(prompt, image_data, num_inference_steps, guidance_scale, stre
 interface = gr.Interface(
     fn=generate_image,
     inputs=[
-        gr.Textbox(label="Prompt"),
+        gr.Textbox(label="Prompt", value="photo of grace"),
         gr.ImageEditor(height=1024,width=1024,label="Input Image and Mask", brush=gr.Brush(colors=["#FFFFFF"], color_mode="fixed")),
         gr.Slider(1, 100, value=25, step=1, label="Number of Inference Steps"),
         gr.Slider(1.0, 10.0, value=3.5, step=0.1, label="Guidance Scale"),
         gr.Slider(0.0, 1.0, value=1.0, step=0.1, label="Strength"),
         gr.Slider(0, 200, value=0, step=1, label="Blur Amount"),
-        gr.Textbox(label="LoRA Weights URL")  # Add this input for the LoRA weights URL
+        gr.Textbox(label="LoRA Weights URL", value="https://storage.googleapis.com/fal-flux-lora/c66274c37a0c46d79c0fbe9026a08f0f_lora.safetensors")  # Add this input for the LoRA weights URL
     ],
     outputs=[
         gr.Image(type="pil", label="Output Image"),
         gr.Image(type="pil", label="Mask Image")
     ],
-    title="Flux Differential Image-to-Image Pipeline",
+    title="LoRa + Flux Differential Inpainting",
     description="Generate an image based on a prompt, input image, and mask image using the Flux Differential Image-to-Image Pipeline."
 )
 
