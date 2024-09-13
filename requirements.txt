@@ -1,0 +1,9 @@
+torch
+diffusers
+transformers
+Pillow
+tqdm
+requests
+gradio
+torchvision
+peft
