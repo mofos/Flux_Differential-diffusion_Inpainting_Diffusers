@@ -1,9 +1,6 @@
-<<<<<<< HEAD
-=======
-# Flux_Differential-diffusion_Inpainting_Diffusers
->>>>>>> 2202c2b73ceaa4b6a4c65e9da3c7227dd415d64e
 
- 
+# Flux_Differential-diffusion_Inpainting_Diffusers
+
 ## Introduction
 
 This project implements soft inpainting using the Flux model with Diffusers, incorporating support for LoRA (Low-Rank Adaptation). It's based on several key technologies and techniques:
