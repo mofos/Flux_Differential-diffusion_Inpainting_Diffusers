@@ -42,21 +42,25 @@ This project implements soft inpainting using the Flux model with Diffusers, inc
    ```
    pip install -r requirements.txt
    ```
-
-4. Run the inpainting script:
+4. Run the HF login to download flux dev script:
+   ```
+   pip install -U "huggingface_hub[cli]"
+   huggingface-cli login --token <hf_token>
+   ```
+5. Run the inpainting script:
    ```
    python inpaintingv3_Lora.py
    ```
 
-5. The Gradio interface will launch in your default web browser. If it doesn't open automatically, look for a URL in the console output and open it manually.
+6. The Gradio interface will launch in your default web browser. If it doesn't open automatically, look for a URL in the console output and open it manually.
 
-6. In the Gradio interface:
+7. In the Gradio interface:
    - Enter a prompt describing the image you want to generate
    - Upload an input image or use the drawing tool to create a mask
    - Adjust the sliders for inference steps, guidance scale, strength, and blur amount as needed
    - Click "Submit" to generate the inpainted image
 
-7. The output image and the mask will be displayed in the interface. You can download them if desired.
+8. The output image and the mask will be displayed in the interface. You can download them if desired.
 
 Note: Make sure you have a GPU with sufficient VRAM for optimal performance. If you encounter memory issues, try reducing the image size or adjusting the model parameters.
 
