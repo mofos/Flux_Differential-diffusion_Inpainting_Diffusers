@@ -1,27 +1,26 @@
 
 # Flux_Differential-diffusion_Inpainting_Diffusers
+can't wait for the PR(https://github.com/huggingface/diffusers/pull/9268) to get merge ..so used GPT to make this project..
 
-## Introduction
+## Introduction 
 
 This project implements soft inpainting using the Flux model with Diffusers, incorporating support for LoRA (Low-Rank Adaptation). It's based on several key technologies and techniques:
 
-1. **Differential Diffusion**: A novel approach to image editing that allows for more precise and controllable modifications. This method is described in detail in the paper:
+1. **Differential Diffusion**:
 
    [Differential Diffusion: Giving Each Pixel Its Strength](https://arxiv.org/abs/2306.00950)
 
    Differential Diffusion enables fine-grained control over the strength of diffusion at each pixel, leading to more nuanced and targeted image edits.
 
-2. **Flux**: A state-of-the-art text-to-image model developed by Black Forest Labs. This project uses the development version of Flux, which can be found at:
+2. **Flux**: 
 
    [FLUX.1-dev on Hugging Face](https://huggingface.co/black-forest-labs/FLUX.1-dev)
 
    Flux provides powerful image generation capabilities, which we leverage for our inpainting tasks.
 
-3. **LoRA (Low-Rank Adaptation)**: This project supports LoRA for fine-tuning the Flux model. LoRA weights are loaded using the PEFT (Parameter-Efficient Fine-Tuning) method, allowing for efficient adaptation of the model to specific tasks or styles.
+3. **LoRA (Low-Rank Adaptation)**: LoRA weights are loaded using the PEFT (Parameter-Efficient Fine-Tuning) method, allowing for efficient adaptation of the model to specific tasks or styles.
 
 4. **Gaussian Blur for Mask Processing**: The user-provided mask undergoes Gaussian blur processing. This technique softens the edges of the mask, creating a more natural transition between the inpainted area and the original image.
-
-By combining these technologies and techniques with the Diffusers library, this project offers a flexible and powerful tool for soft inpainting tasks, allowing for nuanced control over the inpainting process and easy adaptation to various styles or domains through LoRA.
 
 
  
@@ -107,9 +106,3 @@ Note: Using LoRA may require additional GPU memory. If you encounter out-of-memo
 For more detailed information about the implementation and usage of LoRA in the Flux pipeline, please refer to the original PR: https://github.com/huggingface/diffusers/pull/9268
 
 
-
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 2202c2b73ceaa4b6a4c65e9da3c7227dd415d64e
