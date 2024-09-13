@@ -950,7 +950,7 @@ interface = gr.Interface(
     fn=generate_image,
     inputs=[
         gr.Textbox(label="Prompt"),
-        gr.ImageEditor(label="Input Image and Mask", brush=gr.Brush(colors=["#FFFFFF"], color_mode="fixed")),
+        gr.ImageEditor(height=1024,width=1024,label="Input Image and Mask", brush=gr.Brush(colors=["#FFFFFF"], color_mode="fixed")),
         gr.Slider(1, 100, value=25, step=1, label="Number of Inference Steps"),
         gr.Slider(1.0, 10.0, value=3.5, step=0.1, label="Guidance Scale"),
         gr.Slider(0.0, 1.0, value=1.0, step=0.1, label="Strength"),
