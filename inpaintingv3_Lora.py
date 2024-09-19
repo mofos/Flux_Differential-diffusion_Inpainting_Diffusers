@@ -551,8 +551,8 @@ class FluxDifferentialImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         prompt_2: Optional[Union[str, List[str]]] = None,
         image: PipelineImageInput = None,
         mask_image: PipelineImageInput = None,
-        height: Optional[int] = None,
-        width: Optional[int] = None,
+        height: Optional[int] = 1024,
+        width: Optional[int] = 512,
         padding_mask_crop: Optional[int] = None,
         strength: float = 0.6,
         num_inference_steps: int = 28,
@@ -879,7 +879,12 @@ def execute(mask, amount, device):
     return mask
 
 
-def download_lora_weights(url, save_path="lora_weights.bin"):
+def download_lora_weights(url: str):
+    save_path = url.split('/')[-1]
+    # check if path does not exist
+    if os.path.exists(save_path):
+        # download the weights
+        return save_path
     response = requests.get(url, stream=True)
     total_size = int(response.headers.get('content-length', 0))
     block_size = 1024  # 1 Kilobyte
@@ -896,53 +901,81 @@ def download_lora_weights(url, save_path="lora_weights.bin"):
     
     return save_path
 
+# Load the pipeline
+pipe = FluxDifferentialImg2ImgPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
+pipe = pipe.to("cuda")
+
+def pad_to_divisible_by(image, divisor=64):
+    width, height = image.size
+    padding_right = (divisor - (width % divisor)) % divisor
+    padding_bottom = (divisor - (height % divisor)) % divisor
+    padding = (0, 0, padding_right, padding_bottom)
+    return ImageOps.expand(image, padding), padding
+
+def remove_padding(image, padding):
+    left, top, right, bottom = padding
+    width, height = image.size
+    return image.crop((left, top, width - right, height - bottom))
+
 def generate_image(prompt, image_data, num_inference_steps, guidance_scale, strength, blur_amount, lora_weights_url):
     # Convert numpy arrays to PIL images
     image = Image.fromarray(image_data["background"]).convert("RGB")
-    
+
     # Create an empty mask with a black background
     mask_image = Image.new("1", image.size, 0)
     draw = ImageDraw.Draw(mask_image)
-    
+
     # Combine all strokes to create the mask
     for layer in image_data["layers"]:
         stroke = Image.fromarray(layer).convert("L")
         # Convert the stroke to binary (black and white)
         binary_stroke = stroke.point(lambda p: p > 0 and 255)
         draw.bitmap((0, 0), binary_stroke, fill=255)  # Draw the stroke in white
-     # Invert the mask image if necessary
+    # Invert the mask image if necessary
     mask_image = ImageOps.invert(mask_image)
-    
+
     # Convert mask_image to a tensor
     mask_tensor = T.ToTensor()(mask_image)
-    
+
     # Apply Gaussian blur to the mask
     blurred_mask_tensor = execute(mask_tensor, blur_amount, "cpu")
-    
+
     # Convert the blurred mask tensor back to a PIL image
     blurred_mask_image = T.ToPILImage()(blurred_mask_tensor)
-    
-    # Download LoRA weights
-    lora_weights_path = download_lora_weights(lora_weights_url)
-    
-    # Load the pipeline
-    pipe = FluxDifferentialImg2ImgPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
-    pipe.enable_model_cpu_offload()
-    
-    # Load LoRA weights as an adapter
-    pipe.load_lora_weights(lora_weights_path, backend="peft")
-    
+
+    if lora_weights_url != "":
+        # Download LoRA weights
+        lora_weights_path = download_lora_weights(lora_weights_url)
+
+        # Load LoRA weights as an adapter
+        pipe.load_lora_weights(lora_weights_path, backend="peft")
+
+    # Pad the image and mask to ensure dimensions are divisible by 64
+    padded_image, padding = pad_to_divisible_by(image, divisor=64)
+    padded_mask_image, _ = pad_to_divisible_by(blurred_mask_image, divisor=64)
+
+    # Get padded image dimensions
+    padded_width, padded_height = padded_image.size
+
     # Generate the output image
     out = pipe(
         prompt=prompt,
+        height=padded_height,
+        width=padded_width,
         num_inference_steps=num_inference_steps,
         guidance_scale=guidance_scale,
-        image=image,
-        mask_image=blurred_mask_image,
+        image=padded_image,
+        mask_image=padded_mask_image,
         strength=strength,
     ).images[0]
-    
-    return out, blurred_mask_image
+
+    # Remove the padding from the output image
+    final_image = remove_padding(out, padding)
+
+    if lora_weights_url != "":
+        pipe.unload_lora_weights()
+
+    return final_image, blurred_mask_image
 
 
 # Create a Gradio interface
@@ -953,8 +986,8 @@ interface = gr.Interface(
         gr.ImageEditor(height=1024,width=1024,label="Input Image and Mask", brush=gr.Brush(colors=["#FFFFFF"], color_mode="fixed")),
         gr.Slider(1, 100, value=25, step=1, label="Number of Inference Steps"),
         gr.Slider(1.0, 10.0, value=3.5, step=0.1, label="Guidance Scale"),
-        gr.Slider(0.0, 1.0, value=1.0, step=0.1, label="Strength"),
-        gr.Slider(0, 200, value=0, step=1, label="Blur Amount"),
+        gr.Slider(0.0, 1.0, value=0.90, step=0.01, label="Strength"),
+        gr.Slider(0, 400, value=200, step=1, label="Blur Amount"),
         gr.Textbox(label="LoRA Weights URL", value="https://storage.googleapis.com/fal-flux-lora/c66274c37a0c46d79c0fbe9026a08f0f_lora.safetensors")  # Add this input for the LoRA weights URL
     ],
     outputs=[

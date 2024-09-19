@@ -4,7 +4,8 @@ transformers
 Pillow
 tqdm
 requests
-gradio
+gradio==4.42.0
 torchvision
 peft
 sentencepiece
+protobuf

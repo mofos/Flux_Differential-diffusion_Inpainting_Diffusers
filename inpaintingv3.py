@@ -68,6 +68,45 @@ EXAMPLE_DOC_STRING = """
         >>> out.save("image.png")
         ```
         """
+
+
+def custom_preprocess(image, height, width):
+    # Calculate the aspect ratio
+    aspect_ratio = image.width / image.height
+    if aspect_ratio > 1:  # Landscape
+        new_width = width
+        new_height = int(width / aspect_ratio)
+    else:  # Portrait
+        new_height = height
+        new_width = int(height * aspect_ratio)
+    
+    # Resize the image while maintaining aspect ratio
+    image = image.resize((new_width, new_height), Image.LANCZOS)
+    
+    # Create a new image with the desired dimensions and paste the resized image
+    new_image = Image.new("RGB", (width, height))
+    new_image.paste(image, ((width - new_width) // 2, (height - new_height) // 2))
+    return new_image
+
+def custom_preprocess_mask(mask, height, width):
+    # Calculate the aspect ratio
+    aspect_ratio = mask.width / mask.height
+    if aspect_ratio > 1:  # Landscape
+        new_width = width
+        new_height = int(width / aspect_ratio)
+    else:  # Portrait
+        new_height = height
+        new_width = int(height * aspect_ratio)
+    
+    # Resize the mask while maintaining aspect ratio
+    mask = mask.resize((new_width, new_height), Image.LANCZOS)
+    
+    # Create a new mask with the desired dimensions and paste the resized mask
+    new_mask = Image.new("L", (width, height))
+    new_mask.paste(mask, ((width - new_width) // 2, (height - new_height) // 2))
+    return new_mask
+
+
 def calculate_shift(
     image_seq_len,
     base_seq_len: int = 256,
@@ -681,17 +720,15 @@ class FluxDifferentialImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
         self._interrupt = False
         is_strength_max = strength == 1.0
         # 2. Preprocess mask and image
-        if padding_mask_crop is not None:
-            crops_coords = self.mask_processor.get_crop_region(mask_image, width, height, pad=padding_mask_crop)
-            resize_mode = "fill"
-        else:
-            crops_coords = None
-            resize_mode = "default"
+        resize_mode = "default"
         original_image = image
-        init_image = self.image_processor.preprocess(
-            image, height=height, width=width, crops_coords=crops_coords, resize_mode=resize_mode
-        )
+        init_image = custom_preprocess(image, height=height, width=width)
         init_image = init_image.to(dtype=torch.float32)
+        
+        if mask_image is not None:
+            mask_image = custom_preprocess_mask(mask_image, height=height, width=width)
+            mask_image = T.ToTensor()(mask_image).to(dtype=torch.float32)
+
         # 3. Define call parameters
         if prompt is not None and isinstance(prompt, str):
             batch_size = 1
@@ -758,9 +795,7 @@ class FluxDifferentialImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
             is_strength_max,
         )
         # start diff diff preparation
-        original_mask = self.mask_processor.preprocess(
-            mask_image, height=height, width=width, resize_mode=resize_mode, crops_coords=crops_coords
-        )
+        original_mask = mask_image  # Use the preprocessed mask image directly
         masked_image = init_image * original_mask
         original_mask, _ = self.prepare_mask_latents(
             original_mask,
@@ -879,7 +914,12 @@ def execute(mask, amount, device):
     return mask
 
 
-def download_lora_weights(url, save_path="lora_weights.bin"):
+def download_lora_weights(url: str):
+    save_path = url.split('/')[-1]
+    # check if path does not exist
+    if os.path.exists(save_path):
+        # download the weights
+        return save_path
     response = requests.get(url, stream=True)
     total_size = int(response.headers.get('content-length', 0))
     block_size = 1024  # 1 Kilobyte
@@ -896,7 +936,11 @@ def download_lora_weights(url, save_path="lora_weights.bin"):
     
     return save_path
 
-def generate_image(prompt, image_data, num_inference_steps, guidance_scale, strength, blur_amount):
+# Load the pipeline
+pipe = FluxDifferentialImg2ImgPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
+pipe = pipe.to("cuda")
+
+def generate_image(prompt, image_data, num_inference_steps, guidance_scale, strength, blur_amount, lora_weights_url):
     # Convert numpy arrays to PIL images
     image = Image.fromarray(image_data["background"]).convert("RGB")
     
@@ -922,13 +966,13 @@ def generate_image(prompt, image_data, num_inference_steps, guidance_scale, stre
     # Convert the blurred mask tensor back to a PIL image
     blurred_mask_image = T.ToPILImage()(blurred_mask_tensor)
     
-    
-    # Load the pipeline
-    pipe = FluxDifferentialImg2ImgPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
-    pipe.enable_model_cpu_offload()
-    
+    if lora_weights_url != "":
+        # Download LoRA weights
+        lora_weights_path = download_lora_weights(lora_weights_url)
 
-    
+        # Load LoRA weights as an adapter
+        pipe.load_lora_weights(lora_weights_path, backend="peft")
+
     # Generate the output image
     out = pipe(
         prompt=prompt,
@@ -938,7 +982,10 @@ def generate_image(prompt, image_data, num_inference_steps, guidance_scale, stre
         mask_image=blurred_mask_image,
         strength=strength,
     ).images[0]
-    
+
+    if lora_weights_url != "":
+        pipe.unload_lora_weights()
+
     return out, blurred_mask_image
 
 
@@ -946,18 +993,19 @@ def generate_image(prompt, image_data, num_inference_steps, guidance_scale, stre
 interface = gr.Interface(
     fn=generate_image,
     inputs=[
-        gr.Textbox(label="Prompt"),
+        gr.Textbox(label="Prompt", value="photo of grace"),
         gr.ImageEditor(height=1024,width=1024,label="Input Image and Mask", brush=gr.Brush(colors=["#FFFFFF"], color_mode="fixed")),
         gr.Slider(1, 100, value=25, step=1, label="Number of Inference Steps"),
         gr.Slider(1.0, 10.0, value=3.5, step=0.1, label="Guidance Scale"),
-        gr.Slider(0.0, 1.0, value=1.0, step=0.1, label="Strength"),
+        gr.Slider(0.0, 1.0, value=1.0, step=0.01, label="Strength"),
         gr.Slider(0, 200, value=0, step=1, label="Blur Amount"),
+        gr.Textbox(label="LoRA Weights URL", value="https://storage.googleapis.com/fal-flux-lora/c66274c37a0c46d79c0fbe9026a08f0f_lora.safetensors")  # Add this input for the LoRA weights URL
     ],
     outputs=[
         gr.Image(type="pil", label="Output Image"),
         gr.Image(type="pil", label="Mask Image")
     ],
-    title="Flux Differential Inpainting",
+    title="LoRa + Flux Differential Inpainting",
     description="Generate an image based on a prompt, input image, and mask image using the Flux Differential Image-to-Image Pipeline."
 )
 
